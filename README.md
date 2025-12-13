@@ -166,12 +166,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Contact
 
 For questions or suggestions, please open an issue or contact me directly.
-
----
-
-⭐ If you found this project helpful, please give it a star!
-
-## 📊 Project Stats
-
-![GitHub stars](https://img.shields.io/github/stars/Sh4xi/drowsiness-detection-system?style=social)
-![GitHub forks](https://img.shields.io/github/forks/Sh4xi/drowsiness-detection-system?style=social)
