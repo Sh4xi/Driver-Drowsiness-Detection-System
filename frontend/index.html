@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Drowsiness Detection System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0e1a;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            height: 100vh;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .video-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e2a3a 0%, #2d3e50 100%);
+            padding: 20px 30px;
+            border-radius: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            letter-spacing: 2px;
+            font-weight: 600;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 20px #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-dot.warning {
+            background: #ff9500;
+            box-shadow: 0 0 20px #ff9500;
+        }
+
+        .status-dot.danger {
+            background: #ff0000;
+            box-shadow: 0 0 20px #ff0000;
+        }
+
+        .video-container {
+            flex: 1;
+            background: #1a1f2e;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+        }
+
+        #videoFeed {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .metrics-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 14, 26, 0.85);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #2d3e50;
+            backdrop-filter: blur(10px);
+        }
+
+        .metrics-overlay h3 {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .metric {
+            margin-bottom: 15px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #00ff00;
+        }
+
+        .metric-bar {
+            height: 8px;
+            background: #1a1f2e;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .metric-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00cc00);
+            transition: width 0.3s ease;
+        }
+
+        .alert-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.3);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            animation: flash 0.5s infinite;
+        }
+
+        .alert-overlay.active {
+            display: flex;
+        }
+
+        @keyframes flash {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+
+        /* .alert-text {
+            font-size: 48px;
+            font-weight: 900;
+            text-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+            animation: shake 0.5s infinite;
+        } */
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #1e2a3a 0%, #2d3e50 100%);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .info-card h3 {
+            font-size: 14px;
+            color: #888;
+            margin-bottom: 15px;
+            letter-spacing: 1px;
+        }
+
+        .system-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #2d3e50;
+        }
+
+        .system-stat:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #aaa;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .stat-value.success {
+            color: #00ff00;
+        }
+
+        .stat-value.warning {
+            color: #ff9500;
+        }
+
+        .stat-value.danger {
+            color: #ff0000;
+        }
+
+        .gps-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .gps-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .gps-label {
+            color: #888;
+        }
+
+        .gps-value {
+            color: #fff;
+            font-family: monospace;
+        }
+
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #1a1f2e;
+            border-radius: 8px;
+            border-left: 3px solid #00ff00;
+            font-size: 12px;
+        }
+
+        .log-entry.warning {
+            border-left-color: #ff9500;
+        }
+
+        .log-entry.danger {
+            border-left-color: #ff0000;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00ff00, #00cc00);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: #2d3e50;
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: #3d4e60;
+        }
+
+        .emergency-btn {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(135deg, #ff0000, #cc0000);
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 20px rgba(255, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .emergency-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(255, 0, 0, 0.5);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1f2e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #2d3e50;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3d4e60;
+        }
+
+        .connection-status {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background: rgba(10, 14, 26, 0.85);
+            border-radius: 8px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .connection-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+        }
+
+        .connection-dot.disconnected {
+            background: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="video-panel">
+            <div class="header">
+                <h1>DRIVER DROWSINESS DETECTION</h1>
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">ACTIVE</span>
+                </div>
+            </div>
+
+            <div class="video-container">
+                <img id="videoFeed" src="/video_feed" alt="Video Feed">
+                
+                <div class="metrics-overlay">
+                    <h3>METRICS</h3>
+                    <div class="metric">
+                        <div class="metric-label">Eye Openness (EAR)</div>
+                        <div class="metric-value" id="earValue">0.00</div>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill" id="earBar"></div>
+                        </div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label">Yawn Detection (MAR)</div>
+                        <div class="metric-value" id="marValue">0.00</div>
+                        <div class="metric-bar">
+                            <div class="metric-bar-fill" id="marBar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert-overlay" id="alertOverlay">
+                    <!-- <div class="alert-text">DROWSINESS DETECTED</div> -->
+                </div>
+
+                <div class="connection-status">
+                    <div class="connection-dot" id="connectionDot"></div>
+                    <span id="connectionText">Connected</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-card">
+                <h3>SYSTEM INFO</h3>
+                <div class="system-stat">
+                    <span class="stat-label">Detection Status</span>
+                    <span class="stat-value success" id="detectionStatus">ALERT</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">Confidence</span>
+                    <span class="stat-value success" id="confidence">0%</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">Face Detected</span>
+                    <span class="stat-value success" id="faceDetected">NO</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">Brightness</span>
+                    <span class="stat-value" id="brightness">0</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">FPS</span>
+                    <span class="stat-value" id="fps">0</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>GPS LOCATION</h3>
+                <div class="gps-info">
+                    <div class="gps-item">
+                        <span class="gps-label">Latitude:</span>
+                        <span class="gps-value" id="latitude">Detecting...</span>
+                    </div>
+                    <div class="gps-item">
+                        <span class="gps-label">Longitude:</span>
+                        <span class="gps-value" id="longitude">Detecting...</span>
+                    </div>
+                    <div class="gps-item">
+                        <span class="gps-label">Speed:</span>
+                        <span class="gps-value" id="speed">0 km/h</span>
+                    </div>
+                    <div class="gps-item">
+                        <span class="gps-label">Location:</span>
+                        <span class="gps-value" id="location">Quezon City, PH</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>SESSION STATISTICS</h3>
+                <div class="system-stat">
+                    <span class="stat-label">Drowsy Events</span>
+                    <span class="stat-value warning" id="drowsyCount">0</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">Yawns</span>
+                    <span class="stat-value" id="yawnCount">0</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">Alerts Sent</span>
+                    <span class="stat-value" id="alertCount">0</span>
+                </div>
+                <div class="system-stat">
+                    <span class="stat-label">Session Time</span>
+                    <span class="stat-value" id="sessionTime">00:00:00</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>ACTIVITY LOG</h3>
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry">
+                        <div class="log-time">System ready</div>
+                        <div>Waiting for video stream...</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>CONTROLS</h3>
+                <div class="controls">
+                    <button class="btn-secondary" onclick="exportData()">Export Data</button>
+                </div>
+                <button class="emergency-btn" onclick="sendEmergency()">🚨 EMERGENCY ALERT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let lastAlertSound = 0;
+        let sessionStartTime = Date.now();
+        
+        // Update status from backend
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update metrics
+                document.getElementById('earValue').textContent = data.ear.toFixed(3);
+                document.getElementById('marValue').textContent = data.mar.toFixed(3);
+                document.getElementById('earBar').style.width = (data.ear * 200) + '%';
+                document.getElementById('marBar').style.width = (data.mar * 100) + '%';
+                
+                // Update system info
+                document.getElementById('confidence').textContent = data.confidence + '%';
+                document.getElementById('faceDetected').textContent = data.face_detected ? 'YES' : 'NO';
+                document.getElementById('brightness').textContent = data.brightness;
+                document.getElementById('fps').textContent = data.fps;
+                
+                // Update statistics
+                document.getElementById('drowsyCount').textContent = data.drowsy_count;
+                document.getElementById('yawnCount').textContent = data.yawn_count;
+                document.getElementById('alertCount').textContent = data.alert_count;
+                
+                // Update status
+                if (data.is_drowsy) {
+                    updateStatusIndicator('DROWSY', 'danger');
+                    document.getElementById('alertOverlay').classList.add('active');
+                    document.getElementById('detectionStatus').textContent = 'DROWSY';
+                    document.getElementById('detectionStatus').className = 'stat-value danger';
+                    
+                    // Play sound every 3 seconds
+                    if (Date.now() - lastAlertSound > 3000) {
+                        playAlertSound();
+                        lastAlertSound = Date.now();
+                        addLog('⚠️ DROWSINESS DETECTED - Alert triggered', 'danger');
+                    }
+                } else if (data.is_yawning) {
+                    updateStatusIndicator('YAWNING', 'warning');
+                    document.getElementById('alertOverlay').classList.remove('active');
+                    document.getElementById('detectionStatus').textContent = 'YAWNING';
+                    document.getElementById('detectionStatus').className = 'stat-value warning';
+                } else {
+                    updateStatusIndicator('ACTIVE', 'success');
+                    document.getElementById('alertOverlay').classList.remove('active');
+                    document.getElementById('detectionStatus').textContent = 'ALERT';
+                    document.getElementById('detectionStatus').className = 'stat-value success';
+                }
+                
+                // Update connection status
+                document.getElementById('connectionDot').classList.remove('disconnected');
+                document.getElementById('connectionText').textContent = 'Connected';
+                
+            } catch (error) {
+                console.error('Error fetching status:', error);
+                document.getElementById('connectionDot').classList.add('disconnected');
+                document.getElementById('connectionText').textContent = 'Disconnected';
+            }
+        }
+        
+        function updateStatusIndicator(text, type) {
+            document.getElementById('statusDot').className = 'status-dot ' + type;
+            document.getElementById('statusText').textContent = text;
+        }
+        
+        function playAlertSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+        
+        function addLog(message, type = '') {
+            const logContainer = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString();
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry ' + type;
+            logEntry.innerHTML = `
+                <div class="log-time">${time}</div>
+                <div>${message}</div>
+            `;
+            
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            while (logContainer.children.length > 20) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+        
+        function updateSessionTime() {
+            const elapsed = Date.now() - sessionStartTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            
+            document.getElementById('sessionTime').textContent = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+        
+        async function exportData() {
+            try {
+                const response = await fetch('/api/export');
+                const data = await response.json();
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `drowsiness-report-${Date.now()}.json`;
+                a.click();
+                
+                addLog('Data exported successfully', 'success');
+            } catch (error) {
+                addLog('Export failed: ' + error.message, 'danger');
+            }
+        }
+        
+        async function sendEmergency() {
+            try {
+                const response = await fetch('/api/emergency', { method: 'POST' });
+                const data = await response.json();
+                
+                addLog('EMERGENCY ALERT SENT TO CARETAKER', 'danger');
+                alert('Emergency alert sent!\n\nCaretaker will receive:\n- SMS with live GPS location\n- Voice call alert\n- Real-time monitoring link');
+            } catch (error) {
+                addLog('Emergency alert failed: ' + error.message, 'danger');
+            }
+        }
+        
+        // Get GPS location
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(position => {
+                const lat = position.coords.latitude.toFixed(4);
+                const lon = position.coords.longitude.toFixed(4);
+                const speed = (position.coords.speed * 3.6).toFixed(0); // Convert m/s to km/h
+                
+                document.getElementById('latitude').textContent = lat + '° N';
+                document.getElementById('longitude').textContent = lon + '° E';
+                document.getElementById('speed').textContent = speed + ' km/h';
+            });
+        }
+        
+        // Initialize
+        addLog('System initialized successfully', 'success');
+        setInterval(updateStatus, 200); // Update every 200ms
+        setInterval(updateSessionTime, 1000);
+    </script>
+</body>
+</html>
