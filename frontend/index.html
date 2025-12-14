@@ -87,12 +87,26 @@
             overflow: hidden;
             position: relative;
             box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         #videoFeed {
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: contain;
+            display: block;
+        }
+
+        .video-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #888;
+            text-align: center;
         }
 
         .metrics-overlay {
@@ -104,6 +118,7 @@
             border-radius: 10px;
             border: 2px solid #2d3e50;
             backdrop-filter: blur(10px);
+            z-index: 10;
         }
 
         .metrics-overlay h3 {
@@ -154,6 +169,7 @@
             justify-content: center;
             align-items: center;
             animation: flash 0.5s infinite;
+            z-index: 5;
         }
 
         .alert-overlay.active {
@@ -163,19 +179,6 @@
         @keyframes flash {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 0.6; }
-        }
-
-        /* .alert-text {
-            font-size: 48px;
-            font-weight: 900;
-            text-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
-            animation: shake 0.5s infinite;
-        } */
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-10px); }
-            75% { transform: translateX(10px); }
         }
 
         .info-panel {
@@ -369,6 +372,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            z-index: 10;
         }
 
         .connection-dot {
@@ -395,7 +399,11 @@
             </div>
 
             <div class="video-container">
-                <img id="videoFeed" src="/video_feed" alt="Video Feed">
+                <div class="video-loading" id="videoLoading">
+                    🎥 Loading camera feed...<br>
+                    <small>Please wait</small>
+                </div>
+                <img id="videoFeed" src="/video_feed" alt="Video Feed" style="display: none;">
                 
                 <div class="metrics-overlay">
                     <h3>METRICS</h3>
@@ -415,9 +423,7 @@
                     </div>
                 </div>
 
-                <div class="alert-overlay" id="alertOverlay">
-                    <!-- <div class="alert-text">DROWSINESS DETECTED</div> -->
-                </div>
+                <div class="alert-overlay" id="alertOverlay"></div>
 
                 <div class="connection-status">
                     <div class="connection-dot" id="connectionDot"></div>
@@ -517,6 +523,31 @@
         let lastAlertSound = 0;
         let sessionStartTime = Date.now();
         
+        // Video feed handling
+        const videoFeed = document.getElementById('videoFeed');
+        const videoLoading = document.getElementById('videoLoading');
+        
+        videoFeed.onload = function() {
+            console.log('✅ Video feed loaded successfully!');
+            videoLoading.style.display = 'none';
+            videoFeed.style.display = 'block';
+            addLog('📹 Video stream connected', 'success');
+        };
+        
+        videoFeed.onerror = function() {
+            console.error('❌ Video feed failed to load');
+            videoLoading.innerHTML = '❌ Camera feed unavailable<br><small>Check terminal for errors</small>';
+            addLog('Failed to load video feed', 'danger');
+        };
+        
+        // Force reload video feed if it fails
+        setTimeout(() => {
+            if (videoFeed.style.display === 'none') {
+                console.log('Video not loaded after 3s, forcing reload...');
+                videoFeed.src = '/video_feed?t=' + Date.now();
+            }
+        }, 3000);
+        
         // Update status from backend
         async function updateStatus() {
             try {
@@ -547,7 +578,6 @@
                     document.getElementById('detectionStatus').textContent = 'DROWSY';
                     document.getElementById('detectionStatus').className = 'stat-value danger';
                     
-                    // Play sound every 3 seconds
                     if (Date.now() - lastAlertSound > 3000) {
                         playAlertSound();
                         lastAlertSound = Date.now();
@@ -565,7 +595,6 @@
                     document.getElementById('detectionStatus').className = 'stat-value success';
                 }
                 
-                // Update connection status
                 document.getElementById('connectionDot').classList.remove('disconnected');
                 document.getElementById('connectionText').textContent = 'Connected';
                 
@@ -662,7 +691,7 @@
             navigator.geolocation.watchPosition(position => {
                 const lat = position.coords.latitude.toFixed(4);
                 const lon = position.coords.longitude.toFixed(4);
-                const speed = (position.coords.speed * 3.6).toFixed(0); // Convert m/s to km/h
+                const speed = (position.coords.speed * 3.6).toFixed(0);
                 
                 document.getElementById('latitude').textContent = lat + '° N';
                 document.getElementById('longitude').textContent = lon + '° E';
@@ -671,8 +700,9 @@
         }
         
         // Initialize
+        console.log('🚀 Initializing system...');
         addLog('System initialized successfully', 'success');
-        setInterval(updateStatus, 200); // Update every 200ms
+        setInterval(updateStatus, 200);
         setInterval(updateSessionTime, 1000);
     </script>
 </body>
