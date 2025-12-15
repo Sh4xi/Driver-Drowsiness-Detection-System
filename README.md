@@ -48,7 +48,7 @@ MAR = (||p2 - p8|| + ||p3 - p7|| + ||p4 - p6||) / (3 * ||p1 - p5||)
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/drowsiness-detection-system.git
+   git clone https://github.com/Sh4xi/drowsiness-detection-system.git
    cd drowsiness-detection-system
    ```
 
