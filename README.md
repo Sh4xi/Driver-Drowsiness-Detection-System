@@ -189,6 +189,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [OpenCV](https://opencv.org/) - Computer vision processing
 - [Flask](https://flask.palletsprojects.com/) - Web framework
 - EAR algorithm based on: Soukupová and Čech (2016)
+- Developed with assistance from AI pair programming tools
 
 ## 📧 Contact
 
